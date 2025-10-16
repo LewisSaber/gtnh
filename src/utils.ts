@@ -23,6 +23,11 @@ export type GtVoltageTier = {
     voltage:number;
 }
 
+export function GetFusionTier(euToStart:number):number {
+    let rawTier = Math.log2(euToStart / 160e6) + 1;
+    return Math.min(5, Math.max(1, Math.ceil(rawTier)));
+}
+
 export var voltageTier:GtVoltageTier[] = [
     {name: "LV", voltage: 32},
     {name: "MV", voltage: 128},
@@ -65,6 +70,8 @@ export const TIER_UIV = 10;
 export const TIER_UMV = 11;
 export const TIER_UXV = 12;
 export const TIER_MAX = 13;
+
+export var CoilTierNames = ["Cupronickel", "Kanthal", "Nichrome", "TPV", "HSS-G", "HSS-S", "Naquadah", "Naquadah Alloy", "Trinium", "Electrum Flux", "Awakened Draconium", "Infinity", "Hypogen", "Eternal"];
 
 
 export function formatAmount(amount: number): string {

@@ -1,5 +1,5 @@
-import { GetScrollbarWidth, voltageTier, formatAmount } from "./utils.js";
-import { Goods, Fluid, Item, Repository, IMemMappedObjectPrototype, Recipe, RecipeType, RecipeIoType, RecipeInOut, RecipeObject, OreDict } from "./repository.js";
+import { GetScrollbarWidth, voltageTier, formatAmount, CoilTierNames, TIER_MV, GetFusionTier } from "./utils.js";
+import { Goods, Fluid, Item, Repository, IMemMappedObjectPrototype, Recipe, RecipeType, RecipeIoType, RecipeInOut, RecipeObject, OreDict, GtRecipeMetadata } from "./repository.js";
 import { SearchQuery } from "./searchQuery.js";
 import { ShowTooltip, HideTooltip } from "./tooltip.js";
 
@@ -102,8 +102,7 @@ class NeiRecipeTypeInfo extends Array implements NeiRowAllocator<Recipe>
         if (gtRecipe != null)
         {
             h++;
-            if (gtRecipe.additionalInfo !== null)
-                h++;
+            h += Math.ceil(gtRecipe.metadata.length / 2);
         }
         return h;
     }
@@ -194,23 +193,61 @@ class NeiRecipeTypeInfo extends Array implements NeiRowAllocator<Recipe>
             dom.push(`</div>`);
             if (recipe.gtRecipe != null) {
                 dom.push(`<span>${voltageTier[recipe.gtRecipe.voltageTier].name} • ${recipe.gtRecipe.durationSeconds}s`);
-                if (recipe.gtRecipe.cleanRoom)
-                    dom.push(` • Cleanroom`);
-                if (recipe.gtRecipe.lowGravity)
-                    dom.push(` • Low gravity`);
                 if (recipe.gtRecipe.amperage != 1)
                     dom.push(` • ${recipe.gtRecipe.amperage}A`);
                 dom.push(`</span><span class="text-small">${formatAmount(recipe.gtRecipe.voltage)}v • ${formatAmount(recipe.gtRecipe.voltage * recipe.gtRecipe.amperage * recipe.gtRecipe.durationTicks)}eu</span>`);
-                if (recipe.gtRecipe.additionalInfo != null) {
-                    dom.push(`<span class="text-small">`);
-                    dom.push(recipe.gtRecipe.additionalInfo);
-                    dom.push(`</span>`);
+                for (const metadata of recipe.gtRecipe.metadata) {
+                    let str = MetadataToString(metadata);
+                    if (str != null) {
+                        dom.push(`<span class="text-small">${str}</span>`);
+                    }
                 }
                 dom.push(`<span class="text-small">${this.FormatCircuitConflicts(recipe.gtRecipe.circuitConflicts)}</span>`);
             }
             dom.push(`</div>`);
         }
         return dom.join("");
+    }
+}
+
+const FuelTypeNames = ["Diesel", "Gas", "Hot", "Dense Steam", "Plasma", "Magic"];
+
+function DisplayHeatRequired(heat:number):string {
+    let rawTier = Math.min(13, Math.max(0, (heat - 1800) / 900));
+    let tier = Math.ceil(rawTier);
+    if (tier == 0)
+        return "Heat: "+heat+" ("+CoilTierNames[tier]+")K";
+    let tierRemainder = rawTier == tier ? 9 : Math.ceil((tier - rawTier) * 9);
+    return "Heat: "+heat+"K ("+CoilTierNames[tier]+" or "+CoilTierNames[tier-1]+" at "+voltageTier[TIER_MV + tierRemainder]?.name+")";
+}
+
+function DisplayFusionTier(euToStart:number):string {
+    let tier = GetFusionTier(euToStart);
+    return "To start: "+formatAmount(euToStart)+" EU (T"+tier+")";
+}
+
+function DisplayNkeRange(nke:number):string {
+    let min = nke % 10000;
+    let max = Math.floor(nke / 10000);
+    return "Kinetic energy: "+min+" - "+max+" MeV";
+}
+
+function MetadataToString(metadata:GtRecipeMetadata):string | null {
+    switch (metadata.key) {
+        case "low_gravity": return metadata.value == 1 ? "Requires low gravity" : null;
+        case "cleanroom": return metadata.value == 1 ? "Requires cleanroom" : null;
+        case "fuel_type": return `Fuel type: ${FuelTypeNames[metadata.value]}`;
+        case "fuel_value": return `Fuel value: ${formatAmount(metadata.value)} EU/L`;
+        case "fusion_threshold": return DisplayFusionTier(metadata.value);
+        case "fog_plasma_multistep": return metadata.value == 1 ? "Multi-step plasma" : "Single-step plasma";
+        case "fog_plasma_tier": return `Plasma tier: ${metadata.value}`;
+        case "pcb_factory_tier": case "nano_forge_tier": return `Requires tier ${metadata.value}`;
+        case "GLASS": return "Glass tier: " + voltageTier[metadata.value-1].name;
+        case "qft_focus_tier": return "QFT focus tier: " + metadata.value;
+        case "recycle": return metadata.value == 1 ? "Recycle recipe" : null;
+        case "coil_heat": return DisplayHeatRequired(metadata.value);
+        case "nke_range": return DisplayNkeRange(metadata.value);
+        default: return `${metadata.key}: ${formatAmount(metadata.value)}`;
     }
 }
 

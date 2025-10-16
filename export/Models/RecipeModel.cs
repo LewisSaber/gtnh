@@ -180,4 +180,14 @@ namespace GT_recipe_parser
         [SchemaName("ICON_ID")]
         public string IconId { get; set; }
     }
+
+    public class RecipeMetadataModel
+    {
+        [SchemaName("GREG_TECH_RECIPE_ID")]
+        public string GtRecipeId { get; set; }
+        [SchemaName("METADATA_KEY")]
+        public string Key { get; set; }
+        [SchemaName("METADATA_VALUE")]
+        public long Value { get; set; }
+    }
 }

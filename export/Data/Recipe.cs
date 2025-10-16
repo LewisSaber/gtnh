@@ -19,11 +19,9 @@ namespace Source.Data
         public int durationTicks;
         public int amperage;
         public int voltageTier;
-        public bool cleanRoom;
-        public bool lowGravity;
-        public string additionalInfo;
         public int circuitConflicts;
         public int specialValue;
+        public RecipeMetadata[] metadata;
     }
     
     [Serializable]

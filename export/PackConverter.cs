@@ -46,13 +46,14 @@ namespace Source
         public static readonly TypeSchema<TaskFluidsModel> taskFluids = new ("TASK_FLUIDS");
         public static readonly TypeSchema<TaskItemGroupModel> taskItemGroup = new ("TASK_ITEM_GROUP");
         public static readonly TypeSchema<RecipeTypeItemModel> recipeTypeItem = new ("RECIPE_TYPE_ITEM");
+        public static readonly TypeSchema<RecipeMetadataModel> recipeMetadata = new ("GREG_TECH_RECIPE_METADATA");
 
         public static readonly TypeSchema[] All = 
         {
             aspect, aspectAspect, aspectEntry, fluid, fluidBlock, fluidContainer, fluidGroupFluidStacks, fluidGroup, gregTechRecipe, gregTechRecipeItem, item, itemGroup,
             itemGroupItemStacks, itemToolClasses, mob, mobInfo, mobInfoDrops, mobInfoSpawnInfo, oreDictionary, quest, questLine, questLineQuest, questLineQuestLineEntries,
             questQuest, questReward, questTask, recipe, recipeFluidGroup, recipeFluidInputsFluids, recipeFluidOutputs, recipeItemGroup, recipeItemInputsItems,
-            recipeItemOutputs, recipeType, reward, rewardItemGroup, task, taskFluids, taskItemGroup, recipeTypeItem
+            recipeItemOutputs, recipeType, reward, rewardItemGroup, task, taskFluids, taskItemGroup, recipeTypeItem, recipeMetadata
         };
 
         public static TypeSchema FindSchema(string name)
@@ -118,11 +119,15 @@ namespace Source
         
         private class RecipeBuilder
         {
+            public static readonly HashSet<string> MetadataToIgnore = new HashSet<string>() { "no_gas", "no_gas_circuit_config", "additives" };
+            public static readonly HashSet<string> MetadataToIgnoreWhenZero = new HashSet<string>() { "low_gravity", "cleanroom", "recycle" };
+            
             public Recipe recipe;
             public List<(int slot, ItemGroupBuilder items)> itemInputs = new();
             public List<(int slot, FluidGroupBuilder fluid)> fluidInputs = new();
             public List<RecipeProduct<Item>> itemOutputs = new();
             public List<RecipeProduct<Fluid>> fluidOutputs = new();
+            public List<RecipeMetadata> metadata = new();
             public bool banned;
 
             private static List<RecipeInput<Item>> bufferItems = new();
@@ -171,6 +176,11 @@ namespace Source
 
                 recipe.itemInputs = bufferItems.ToArray();
                 recipe.oreDictInputs = bufferOredict.ToArray();
+                if (recipe.gtInfo != null)
+                {
+                    metadata.RemoveAll(x => MetadataToIgnore.Contains(x.key) || MetadataToIgnoreWhenZero.Contains(x.key) && x.value == 0);
+                    recipe.gtInfo.metadata = metadata.ToArray();
+                }
             }
         }
 
@@ -182,6 +192,7 @@ namespace Source
             var fgroups = new Dictionary<string, FluidGroupBuilder>();
             var recipeTypesMap = new Dictionary<string, RecipeType>();
             var recipes = new Dictionary<string, RecipeBuilder>();
+            var gtRecipes = new Dictionary<string, RecipeBuilder>();
             var recipeTypes = new List<RecipeType>();
             var aspects = new Dictionary<string, string>();
 
@@ -274,11 +285,19 @@ namespace Source
 
             foreach (var gt in generator.GetTableContents(gregTechRecipe))
             {
-                recipes[gt.RecipeId].recipe.gtInfo = new GtRecipeInfo
+                var gtRecipe = new GtRecipeInfo
                 {
-                    amperage = gt.Amperage, voltage = gt.Voltage, voltageTier = VoltageTiers.GetVoltageTier(gt.VoltageTier), durationTicks = gt.Duration, cleanRoom = gt.RequiresCleanroom,
-                    lowGravity = gt.RequiresLowGravity, additionalInfo = gt.AdditionalInfo, specialValue = gt.RecipeSpecialValue,
+                    amperage = gt.Amperage, voltage = gt.Voltage, voltageTier = VoltageTiers.GetVoltageTier(gt.VoltageTier), durationTicks = gt.Duration,
+                    specialValue = gt.RecipeSpecialValue,
                 };
+                var recipe = recipes[gt.RecipeId]; 
+                recipe.recipe.gtInfo = gtRecipe;
+                gtRecipes[gt.Id] = recipe;
+            }
+
+            foreach (var metadata in generator.GetTableContents(recipeMetadata))
+            {
+                gtRecipes[metadata.GtRecipeId].metadata.Add(new RecipeMetadata {key = metadata.Key, value = metadata.Value});
             }
 
             foreach (var fluidGroup in generator.GetTableContents(recipeFluidGroup))

@@ -4,13 +4,14 @@ const charCodeItem = "i".charCodeAt(0);
 const charCodeFluid = "f".charCodeAt(0);
 const charCodeRecipe = "r".charCodeAt(0);
 
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 export class Repository
 {
     static current:Repository;
 
     elements: Int32Array;
     bytes: Uint8Array;
+    view: DataView;
     textReader: TextDecoder;
     objects: {[index:number]: (MemMappedObject | Int32Array | string)} = {}
     items:Int32Array;
@@ -26,6 +27,7 @@ export class Repository
     {
         this.bytes = new Uint8Array(data);
         this.elements = new Int32Array(data);
+        this.view = new DataView(data);
         this.textReader = new TextDecoder();
         let dataVersion = this.elements[0];
         if (dataVersion != DATA_VERSION)
@@ -170,6 +172,11 @@ class MemMappedObject
         return this.repository.elements[offset + this.objectOffset];
     }
 
+    protected GetDouble(offset:number)
+    {
+        return this.repository.view.getFloat64(4 * (offset + this.objectOffset), true);
+    }
+
     protected GetString(offset:number)
     {
         return this.repository.GetString(this.repository.elements[offset + this.objectOffset]);
@@ -178,6 +185,16 @@ class MemMappedObject
     protected GetSlice(offset:number)
     {
         return this.repository.GetSlice(this.repository.elements[offset + this.objectOffset]);
+    }
+
+    protected GetArray<T extends MemMappedObject>(offset:number, prototype:IMemMappedObjectPrototype<T>)
+    {
+        let slice = this.GetSlice(offset);
+        let result:T[] = new Array(slice.length);
+        for (var i = 0; i < slice.length; i++) {
+            result[i] = this.repository.GetObject(slice[i], prototype);
+        }
+        return result;
     }
 
     protected GetObject<T extends MemMappedObject>(offset:number, prototype:IMemMappedObjectPrototype<T>)
@@ -254,11 +271,7 @@ export class OreDict extends RecipeObject
 
     constructor(repository:Repository, offset:number) {
         super(repository, offset);
-        var slice = this.GetSlice(5);
-        this.items = new Array(slice.length);
-        for (var i = 0; i < slice.length; i++) {
-            this.items[i] = repository.GetObject(slice[i], Item);
-        }
+        this.items = this.GetArray(5, Item);
     }
 
     MatchSearchText(query: SearchQuery): boolean
@@ -275,23 +288,15 @@ export class OreDict extends RecipeObject
 
 export class RecipeType extends MemMappedObject
 {
-    singleblocks:Item[] = [];
-    multiblocks:Item[] = [];
+    singleblocks:Item[];
+    multiblocks:Item[];
     defaultCrafter:Item;
 
     constructor(repository:Repository, offset:number) {
         super(repository, offset);
-        var singleblocks = this.GetSlice(5);
-        var multiblocks = this.GetSlice(3);
-        this.singleblocks = new Array(singleblocks.length);
-        this.multiblocks = new Array(multiblocks.length);
+        this.singleblocks = this.GetArray(5, Item);
         this.defaultCrafter = this.GetObject(6, Item);
-        for (var i = 0; i < singleblocks.length; i++) {
-            this.singleblocks[i] = repository.GetObject(singleblocks[i], Item);
-        }
-        for (var i = 0; i < multiblocks.length; i++) {
-            this.multiblocks[i] = repository.GetObject(multiblocks[i], Item);
-        }
+        this.multiblocks = this.GetArray(3, Item);
     }
 
     get name():string {return this.GetString(0);}
@@ -308,11 +313,24 @@ class GtRecipe extends MemMappedObject
     get durationMinutes():number {return this.GetInt(1) / (20 * 60);}
     get amperage():number {return this.GetInt(2);}
     get voltageTier():number {return this.GetInt(3);}
-    get cleanRoom():boolean {return (this.GetInt(4) & 1) === 1;}
-    get lowGravity():boolean {return (this.GetInt(4) & 2) === 2;}
-    get additionalInfo():string {return this.GetString(5);}
-    get circuitConflicts():number {return this.GetInt(6);}
-    get specialValue():number {return this.GetInt(7);}
+    get metadata():GtRecipeMetadata[] {return this.GetArray(4, GtRecipeMetadata);}
+    get circuitConflicts():number {return this.GetInt(5);}
+    get specialValue():number {return this.GetInt(6);}
+
+    MetadataByKey(key:string, defaultValue:number = 0):number {
+        for (const metadata of this.metadata) {
+            if (metadata.key === key) {
+                return metadata.value;
+            }
+        }
+        return defaultValue;
+    }
+}
+
+export class GtRecipeMetadata extends MemMappedObject
+{
+    get key():string {return this.GetString(0);}
+    get value():number {return this.GetDouble(1);}
 }
 
 export enum RecipeIoType

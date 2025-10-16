@@ -84,6 +84,11 @@ namespace Source
                     var del = (Action<T, double>)setter.CreateDelegate(typeof(Action<T, double>));
                     setters[name] = (s, obj) => del((T)obj, double.TryParse(s, out var res) ? res : throw new FormatException("Invalid double: "+s.ToString()));
                 }
+                else if (property.PropertyType == typeof(long))
+                {
+                    var del = (Action<T, long>)setter.CreateDelegate(typeof(Action<T, long>));
+                    setters[name] = (s, obj) => del((T)obj, long.TryParse(s, out var res) ? res : throw new FormatException("Invalid long: "+s.ToString()));
+                }
                 else throw new NotSupportedException("Parsing of type " + property.PropertyType + " is not supported (in type "+typeof(T)+")");
             }
         }

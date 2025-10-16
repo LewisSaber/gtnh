@@ -194,11 +194,11 @@ exports[`Solver Processing CBD.gtnh should process without errors 1`] = `
 exports[`Solver Processing Catalyst.gtnh should process without errors 1`] = `
 [
   {
-    "crafterCount": 0.41666666666666663,
+    "crafterCount": 0.8333333333333333,
     "id": "r~ruDnThbAMPecWrP1xC62-A==",
-    "overclockFactor": 2,
+    "overclockFactor": 1,
     "overclockName": undefined,
-    "powerFactor": 1,
+    "powerFactor": 2,
     "recipesPerMinute": 5,
   },
   {
@@ -1148,11 +1148,11 @@ exports[`Solver Processing Mercury Sulphur Formic Plans.gtnh should process with
 exports[`Solver Processing Nitrobenzene.gtnh should process without errors 1`] = `
 [
   {
-    "crafterCount": 1.05,
+    "crafterCount": 2.1,
     "id": "r~oHhcLWHZPv6s0DtgK38jiw==",
-    "overclockFactor": 1,
+    "overclockFactor": 0.5,
     "overclockName": undefined,
-    "powerFactor": 1,
+    "powerFactor": 2,
     "recipesPerMinute": 2.1,
   },
   {

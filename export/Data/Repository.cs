@@ -10,6 +10,42 @@
         public List<RecipeRemap> remaps = new List<RecipeRemap>();
     }
 
+    public class RecipeMetadata : IEquatable<RecipeMetadata>
+    {
+        public string key;
+        public double value;
+
+        public bool Equals(RecipeMetadata other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return key == other.key && value == other.value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((RecipeMetadata)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(key, value);
+        }
+
+        public static bool operator ==(RecipeMetadata left, RecipeMetadata right)
+        {
+            return Equals(left, right);
+        }
+
+        public static bool operator !=(RecipeMetadata left, RecipeMetadata right)
+        {
+            return !Equals(left, right);
+        }
+    }
+
     public class RecipeRemap
     {
         public string from;

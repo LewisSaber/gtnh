@@ -1,7 +1,7 @@
 import { RecipeModel, OverclockResult } from "./page.js";
 import { Fluid, Goods, Item, Recipe, RecipeInOut, RecipeIoType, RecipeType, Repository } from "./repository.js";
 import { calculateDefaultOverclocks } from "./solver.js";
-import { TIER_LV, TIER_LUV, TIER_ZPM, TIER_UV, TIER_UHV, TIER_UEV } from "./utils.js";
+import { TIER_LV, TIER_LUV, TIER_ZPM, TIER_UV, TIER_UHV, TIER_UEV, CoilTierNames } from "./utils.js";
 import { voltageTier } from "./utils.js";
 
 export type MachineCoefficient = number | ((recipe:RecipeModel, choices:{[key:string]:number}) => number);
@@ -38,7 +38,7 @@ function createEditableCopy(items: RecipeInOut[]): RecipeInOut[] {
 
 let CoilTierChoice:Choice = {
     description: "Coils",
-    choices: ["T1: Cupronickel", "T2: Kanthal", "T3: Nichrome", "T4: TPV", "T5: HSS-G", "T6: HSS-S", "T7: Naquadah", "T8: Naquadah Alloy", "T9: Trinium", "T10: Electrum Flux", "T11: Awakened Draconium", "T12: Infinity", "T13: Hypogen", "T14: Eternal"],
+    choices: CoilTierNames.map((name, index) => `T${index+1}: ${name}`),
 }
 
 type MachineList = {
@@ -1015,7 +1015,7 @@ machines["Flotation Cell Regulator"] = {
 machines["ExxonMobil Chemical Plant"] = {
     perfectOverclock: 0,
     speed: (recipe, choices) => {
-        return choices.coilTier * 0.5 + 1;
+        return choices.coilTier * 0.5 + 0.5;
     },
     power: 1,
     parallels: (recipe, choices) => (choices.pipeCasingTier + 1) * 2,

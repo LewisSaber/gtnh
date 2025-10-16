@@ -19,7 +19,7 @@ namespace Source
         private readonly List<int> rawData = new List<int>();
         private readonly string[] serviceItems = new[] { "Quest Book", "Anvil" };
         
-        private const int DATA_VERSION = 4;
+        private const int DATA_VERSION = 5;
 
         public MemoryMappedPackConverter(Repository repository)
         {
@@ -39,6 +39,15 @@ namespace Source
             rawData.Add(i);
         }
         
+        private void WriteDouble(double d)
+        {
+            var bits = BitConverter.DoubleToUInt64Bits(d);
+            var low = (int)(bits & 0xFFFFFFFF);
+            var high = (int)(bits >> 32);
+            WriteInt(low);
+            WriteInt(high);
+        }
+        
         private void WriteStringRef(string s)
         {
             rawData.Add(-1);
@@ -52,6 +61,8 @@ namespace Source
             rawData.Add(-1);
             if (o == null)
                 return;
+            if (o is IList list && list.Count == 0)
+                o = Array.Empty<int>(); // Write single empty array
             if (objects.TryAdd(o, 0))
                 objectsToWrite.Push(o);
             writePositions.Add((o, rawData.Count - 1));
@@ -69,6 +80,7 @@ namespace Source
                 case Recipe recipe: Write(recipe); return;
                 case OreDict oreDict: Write(oreDict); return;
                 case GtRecipeInfo gtRecipe: Write(gtRecipe); return;
+                case RecipeMetadata metadata: Write(metadata); return;
                 case FluidContainer container: Write(container); return;
                 case int[] intArr: Write(intArr); return;
                 case IList genericList: Write(genericList); return;
@@ -95,16 +107,21 @@ namespace Source
                 WriteInt(elem);
         }
 
-        private void Write(GtRecipeInfo recipeType)
+        private void Write(GtRecipeInfo gtRecipe)
         {
-            WriteInt(recipeType.voltage);
-            WriteInt(recipeType.durationTicks);
-            WriteInt(recipeType.amperage);
-            WriteInt(recipeType.voltageTier);
-            WriteInt((recipeType.cleanRoom ? 1 : 0) + (recipeType.lowGravity ? 2 : 0));
-            WriteStringRef(recipeType.additionalInfo);
-            WriteInt(recipeType.circuitConflicts);
-            WriteInt(recipeType.specialValue);
+            WriteInt(gtRecipe.voltage);
+            WriteInt(gtRecipe.durationTicks);
+            WriteInt(gtRecipe.amperage);
+            WriteInt(gtRecipe.voltageTier);
+            WriteObjectRef(gtRecipe.metadata);
+            WriteInt(gtRecipe.circuitConflicts);
+            WriteInt(gtRecipe.specialValue);
+        }
+        
+        private void Write(RecipeMetadata metadata)
+        {
+            WriteStringRef(metadata.key);
+            WriteDouble(metadata.value);
         }
 
         private void WriteIndexBits(IndexableObject obj)
