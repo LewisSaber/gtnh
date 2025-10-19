@@ -626,12 +626,18 @@ machines["Industrial Material Press"] = {
 };
 
 machines["Nano Forge"] = {
-    perfectOverclock: 0,
+    perfectOverclock: (recipeModel, choices) => {
+        const tier = recipeModel.recipe?.gtRecipe.MetadataByKey("nano_forge_tier") ?? 1;
+        return choices.tier + 1 > tier ? MAX_OVERCLOCK : 0;
+    },
     speed: 1,
     power: 1,
     parallels: 1,
-    choices: {tier: {description: "Tier", choices: ["T1 (Carbon Nanite)", "T2 (Neutronium Nanite)", "T3 (Transcendent Metal Nanite)"]}},
-    info: "Nano forge perfect overclock not implemented.",
+    choices: {tier: {description: "Tier", choices: ["T1 (Carbon Nanite)", "T2 (Neutronium Nanite)", "T3 (Transcendent Metal Nanite)", "T4 (Eternity Nanite)"]}},
+    enforceChoiceConstraints: (recipeModel, choices) => {
+        const tier = recipeModel.recipe?.gtRecipe.MetadataByKey("nano_forge_tier") ?? 1;
+        choices.tier = Math.max(choices.tier, tier - 1);
+    }
 };
 
 machines["Neutronium Compressor"] = {
