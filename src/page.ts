@@ -297,6 +297,10 @@ export class RecipeModel extends RecipeGroupEntry
         return this.recipeItems.filter((entry) => entry.type in [RecipeIoType.FluidInput, RecipeIoType.ItemInput, RecipeIoType.OreDictInput]).length;
     }
 
+    public getOutputCount(): number {
+        return this.recipeItems.length - this.getInputCount();
+    }
+
     public getItemInputCount(): number {
         return this.recipeItems.filter((entry) => entry.type in [RecipeIoType.ItemInput, RecipeIoType.OreDictInput]).length;
     }
@@ -489,6 +493,11 @@ export function SetCurrentPage(newPage: PageModel) {
 }
 
 export function UpdateProject(visualOnly:boolean = false) {
+    if (!visualOnly)
+        SolvePage(page);
+    notifyListeners();
+
+    // workaround to getting empty recipes on first solve
     if (!visualOnly)
         SolvePage(page);
     notifyListeners();
