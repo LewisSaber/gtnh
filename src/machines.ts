@@ -53,6 +53,9 @@ export const singleBlockMachine:Machine = {
     speed: 1,
     power: 1,
     parallels: 1,
+    excludesRecipe: (recipe:Recipe) => {
+        return (recipe.gtRecipe.MetadataByKey("compression_tier") ?? 0) > 0;
+    }
 };
 
 const singleBlockMachineWith22Overclock:Machine = {
@@ -87,6 +90,7 @@ machines["Steam Compressor"] = machines["Steam Alloy Smelter"] = machines["Steam
     speed: 0.5,
     power: 0,
     parallels: 1,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "Steam machine: Steam consumption not calculated",
 }
 
@@ -95,6 +99,7 @@ machines["High Pressure Steam Compressor"] = machines["High Pressure Alloy Smelt
     speed: 1,
     power: 0,
     parallels: 1,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "High pressure steam machine: Steam consumption not calculated",
 }
 
@@ -103,6 +108,7 @@ machines["Steam Squasher"] = machines["Steam Separator"] = machines["Steam Press
     speed: (recipe, choices) => choices.pressure == 1 ? 1.25 : 0.625,
     power: 0,
     parallels: 8,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "Steam multiblock machine: Steam consumption not calculated",
     choices: {
         pressure: {
@@ -116,6 +122,7 @@ machines["Large Electric Compressor"] = {
     perfectOverclock: 0,
     speed: 2,
     power: 0.9,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     parallels: (recipe) => (recipe.voltageTier + 1) * 2,
 };
 
@@ -127,6 +134,7 @@ machines["Hot Isostatic Pressurization Unit"] = {
     power: 0.75,
     // TODO: 4/1 per voltage tier
     parallels: (recipe) => (recipe.voltageTier + 1) * 4,
+    excludesRecipe: makeCompressorRecipeExcluder(1),
     info: "Assumes it is not overheated"
 };
 
@@ -138,6 +146,7 @@ machines["Pseudostable Black Hole Containment Field"] = {
         // TODO: 2x/4x when stability is BELOW 50/20
         return (recipe.voltageTier + 1) * 8;
     },
+    excludesRecipe: makeCompressorRecipeExcluder(2),
     info: "Parallels depend on stability, which is not represented.",
 };
 
@@ -756,11 +765,16 @@ machines["Nano Forge"] = {
     }
 };
 
+function makeCompressorRecipeExcluder(tier:number) {
+    return (recipe:Recipe) => tier < (recipe.gtRecipe.MetadataByKey("compression_tier") ?? 0);
+}
+
 machines["Neutronium Compressor"] = {
     perfectOverclock: 0,
     speed: 1,
     power: 1,
     parallels: 8,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
 };
 
 machines["Amazon Warehousing Depot"] = {

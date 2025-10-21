@@ -5,7 +5,7 @@ import { voltageTier, GtVoltageTier, formatAmount } from "./utils.js";
 import { ShowTooltip } from "./tooltip.js";
 import { IconBox } from "./itemIcon.js";
 import { ShowDropdown, HideDropdown } from "./dropdown.js";
-import { machines, notImplementedMachine, singleBlockMachine } from "./machines.js";
+import { machines, notImplementedMachine, singleBlockMachine, GetSingleBlockMachine } from "./machines.js";
 
 const linkAlgorithmNames: { [key in LinkAlgorithm]: string } = {
     [LinkAlgorithm.Match]: "",
@@ -104,8 +104,17 @@ export class RecipeList {
                     }
                 };
 
-                if (recipeType.singleblocks.length > 0)
-                    tryAddCrafter(recipeType.singleblocks[obj.voltageTier] ?? recipeType.defaultCrafter);
+                if (recipeType.singleblocks.length > 0) {
+                    const singleblock = recipeType.singleblocks[obj.voltageTier];
+                    if (singleblock) {
+                        const machine = GetSingleBlockMachine(recipeType);
+                        const excluded = machine.excludesRecipe ? machine.excludesRecipe(recipe) : false;
+                        if (!excluded)
+                            options.push(singleblock)
+                    } else {
+                        tryAddCrafter(recipeType.defaultCrafter);
+                    }
+                }
 
                 recipeType.multiblocks.forEach(multiblock => {
                     tryAddCrafter(multiblock);
