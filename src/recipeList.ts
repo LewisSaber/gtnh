@@ -91,13 +91,25 @@ export class RecipeList {
 
         this.actionHandlers.set("crafter_click", (obj, event, parent) => {
             if (obj instanceof RecipeModel && event.type === "click") {
-                let options = [];
+                let options : Item[] = [];
                 let recipe = Repository.current.GetById<Recipe>(obj.recipeId);
                 if (!recipe) return;
                 let recipeType = recipe.recipeType;
+
+                let tryAddCrafter = (item:Item) => {
+                    const crafter = machines[item.name];
+                    const excluded = (crafter && crafter.excludesRecipe) ? crafter.excludesRecipe(recipe) : false;
+                    if (!excluded) {
+                        options.push(item);
+                    }
+                };
+
                 if (recipeType.singleblocks.length > 0)
-                    options.push(recipeType.singleblocks[obj.voltageTier] ?? recipeType.defaultCrafter);
-                options.push(...recipeType.multiblocks);
+                    tryAddCrafter(recipeType.singleblocks[obj.voltageTier] ?? recipeType.defaultCrafter);
+
+                recipeType.multiblocks.forEach(multiblock => {
+                    tryAddCrafter(multiblock);
+                });
 
                 const populateDropdown = (container: HTMLElement) => {
                     container.innerHTML = `
