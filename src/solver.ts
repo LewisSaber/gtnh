@@ -105,8 +105,27 @@ function PreProcessRecipe(recipeModel:RecipeModel, model:Model, collection:LinkC
         let crafter = recipeModel.crafter ? Repository.current.GetById<Item>(recipeModel.crafter) : null;
         if (crafter != null && !recipe.recipeType.multiblocks.includes(crafter))
             crafter = null;
-        if (crafter === null && recipe.recipeType.singleblocks.length == 0)
-            crafter = recipe.recipeType.defaultCrafter;
+        let canBeSingleblock = (() => {
+            if (recipe.recipeType.singleblocks.length == 0)
+                return false;
+            const machine = GetSingleBlockMachine(recipe.recipeType);
+            const excluded = machine.excludesRecipe ? machine.excludesRecipe(recipe) : false;
+            return !excluded;
+        })();
+
+        if (crafter === null && !canBeSingleblock) {
+            for(let i = 0; i < recipe.recipeType.multiblocks.length; ++i) {
+                const item = recipe.recipeType.multiblocks[i];
+                const machine = machines[item.name];
+                const excluded = machine.excludesRecipe ? machine.excludesRecipe(recipe) : false;
+                if (!excluded) {
+                    crafter = item;
+                    break;
+                }
+            }
+            if (crafter === null)
+                crafter = recipe.recipeType.defaultCrafter;
+        }
         let isSingleblock = !crafter;
         machineInfo = crafter ? (machines[crafter.name] || notImplementedMachine) : GetSingleBlockMachine(recipe.recipeType);
         recipeModel.multiblockCrafter = crafter;

@@ -5,7 +5,7 @@ import { voltageTier, GtVoltageTier, formatAmount } from "./utils.js";
 import { ShowTooltip } from "./tooltip.js";
 import { IconBox } from "./itemIcon.js";
 import { ShowDropdown, HideDropdown } from "./dropdown.js";
-import { machines, notImplementedMachine, singleBlockMachine } from "./machines.js";
+import { machines, notImplementedMachine, singleBlockMachine, GetSingleBlockMachine } from "./machines.js";
 
 const linkAlgorithmNames: { [key in LinkAlgorithm]: string } = {
     [LinkAlgorithm.Match]: "",
@@ -91,13 +91,34 @@ export class RecipeList {
 
         this.actionHandlers.set("crafter_click", (obj, event, parent) => {
             if (obj instanceof RecipeModel && event.type === "click") {
-                let options = [];
+                let options : Item[] = [];
                 let recipe = Repository.current.GetById<Recipe>(obj.recipeId);
                 if (!recipe) return;
                 let recipeType = recipe.recipeType;
-                if (recipeType.singleblocks.length > 0)
-                    options.push(recipeType.singleblocks[obj.voltageTier] ?? recipeType.defaultCrafter);
-                options.push(...recipeType.multiblocks);
+
+                let tryAddCrafter = (item:Item) => {
+                    const crafter = machines[item.name];
+                    const excluded = (crafter && crafter.excludesRecipe) ? crafter.excludesRecipe(recipe) : false;
+                    if (!excluded) {
+                        options.push(item);
+                    }
+                };
+
+                if (recipeType.singleblocks.length > 0) {
+                    const singleblock = recipeType.singleblocks[obj.voltageTier];
+                    if (singleblock) {
+                        const machine = GetSingleBlockMachine(recipeType);
+                        const excluded = machine.excludesRecipe ? machine.excludesRecipe(recipe) : false;
+                        if (!excluded)
+                            options.push(singleblock)
+                    } else {
+                        tryAddCrafter(recipeType.defaultCrafter);
+                    }
+                }
+
+                recipeType.multiblocks.forEach(multiblock => {
+                    tryAddCrafter(multiblock);
+                });
 
                 const populateDropdown = (container: HTMLElement) => {
                     container.innerHTML = `

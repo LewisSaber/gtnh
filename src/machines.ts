@@ -19,6 +19,7 @@ export type Machine = {
     recipe?: (recipe:RecipeModel, choices:{[key:string]:number}, items:RecipeInOut[]) => RecipeInOut[];
     info?: string;
     ignoreParallelLimit?: boolean;
+    excludesRecipe?: (recipe:Recipe) => boolean;
 }
 
 function noOverclock(recipeModel:RecipeModel, overclockTiers:number): OverclockResult {
@@ -52,6 +53,9 @@ export const singleBlockMachine:Machine = {
     speed: 1,
     power: 1,
     parallels: 1,
+    excludesRecipe: (recipe:Recipe) => {
+        return (recipe.gtRecipe.MetadataByKey("compression_tier") ?? 0) > 0;
+    }
 };
 
 const singleBlockMachineWith22Overclock:Machine = {
@@ -86,6 +90,7 @@ machines["Steam Compressor"] = machines["Steam Alloy Smelter"] = machines["Steam
     speed: 0.5,
     power: 0,
     parallels: 1,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "Steam machine: Steam consumption not calculated",
 }
 
@@ -94,6 +99,7 @@ machines["High Pressure Steam Compressor"] = machines["High Pressure Alloy Smelt
     speed: 1,
     power: 0,
     parallels: 1,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "High pressure steam machine: Steam consumption not calculated",
 }
 
@@ -102,6 +108,7 @@ machines["Steam Squasher"] = machines["Steam Separator"] = machines["Steam Press
     speed: (recipe, choices) => choices.pressure == 1 ? 1.25 : 0.625,
     power: 0,
     parallels: 8,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     info: "Steam multiblock machine: Steam consumption not calculated",
     choices: {
         pressure: {
@@ -115,6 +122,7 @@ machines["Large Electric Compressor"] = {
     perfectOverclock: 0,
     speed: 2,
     power: 0.9,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
     parallels: (recipe) => (recipe.voltageTier + 1) * 2,
 };
 
@@ -126,6 +134,7 @@ machines["Hot Isostatic Pressurization Unit"] = {
     power: 0.75,
     // TODO: 4/1 per voltage tier
     parallels: (recipe) => (recipe.voltageTier + 1) * 4,
+    excludesRecipe: makeCompressorRecipeExcluder(1),
     info: "Assumes it is not overheated"
 };
 
@@ -137,6 +146,7 @@ machines["Pseudostable Black Hole Containment Field"] = {
         // TODO: 2x/4x when stability is BELOW 50/20
         return (recipe.voltageTier + 1) * 8;
     },
+    excludesRecipe: makeCompressorRecipeExcluder(2),
     info: "Parallels depend on stability, which is not represented.",
 };
 
@@ -293,6 +303,10 @@ function makeSpaceAssemblerOverclockCalculator(maxVoltageTier:number, tier:numbe
     };
 }
 
+function makeSpaceAssemblerRecipeExcluder(tier:number) {
+    return (recipe:Recipe) => recipe.gtRecipe.MetadataByKey("space_elevator_module_tier") > tier;
+}
+
 machines["Space Assembler Module MK-I"] = {
     perfectOverclock: 0,
     speed: 1,
@@ -300,6 +314,7 @@ machines["Space Assembler Module MK-I"] = {
     parallels: 4,
     ignoreParallelLimit: true,
     customOverclock: makeSpaceAssemblerOverclockCalculator(TIER_UHV, 1),
+    excludesRecipe: makeSpaceAssemblerRecipeExcluder(1),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -310,6 +325,7 @@ machines["Space Assembler Module MK-II"] = {
     parallels: 16,
     ignoreParallelLimit: true,
     customOverclock: makeSpaceAssemblerOverclockCalculator(TIER_UIV, 2),
+    excludesRecipe: makeSpaceAssemblerRecipeExcluder(2),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -320,6 +336,7 @@ machines["Space Assembler Module MK-III"] = {
     parallels: 64,
     ignoreParallelLimit: true,
     customOverclock: makeSpaceAssemblerOverclockCalculator(TIER_UXV, 3),
+    excludesRecipe: makeSpaceAssemblerRecipeExcluder(3),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -748,11 +765,16 @@ machines["Nano Forge"] = {
     }
 };
 
+function makeCompressorRecipeExcluder(tier:number) {
+    return (recipe:Recipe) => tier < (recipe.gtRecipe.MetadataByKey("compression_tier") ?? 0);
+}
+
 machines["Neutronium Compressor"] = {
     perfectOverclock: 0,
     speed: 1,
     power: 1,
     parallels: 8,
+    excludesRecipe: makeCompressorRecipeExcluder(0),
 };
 
 machines["Amazon Warehousing Depot"] = {
@@ -1413,14 +1435,17 @@ machines["Large Sifter Control Block"] = {
     parallels: (recipe) => (recipe.voltageTier + 1) * 4,
 };
 
-function getFusionTier(recipeModel:RecipeModel): number {
-    const cost = recipeModel.recipe?.gtRecipe?.MetadataByKey("fusion_threshold") ?? 0;
-    return getFusionTierByStartupCost(cost);
+function getFusionTier(recipe:Recipe): number {
+    const cost = recipe.gtRecipe.MetadataByKey("fusion_threshold") ?? 0;
+    const plasmaTier = recipe.gtRecipe.MetadataByKey("fog_plasma_tier") ?? 0;
+    const costTier = getFusionTierByStartupCost(cost);
+    const voltageTier = (recipe.gtRecipe.voltageTier - TIER_LUV + 1) || 0;
+    return Math.max(plasmaTier, costTier, voltageTier);
 }
 
 function makeFusionOverclockCalculator(fusionTier:number, overclockMultiplier:number):(recipeModel:RecipeModel, overclockTiers:number) => OverclockResult {
     return function (recipeModel:RecipeModel, overclockTiers:number): OverclockResult {
-        const recipeTier = Math.max(TIER_LUV, recipeModel.recipe?.gtRecipe?.voltageTier || 0, getFusionTier(recipeModel)+TIER_LUV-1);
+        const recipeTier = getFusionTier(recipeModel.recipe!);
         const maxOverclocks = fusionTier - recipeTier;
         const perfectOverclocks = Math.max(0, maxOverclocks);
         return {
@@ -1432,11 +1457,18 @@ function makeFusionOverclockCalculator(fusionTier:number, overclockMultiplier:nu
     };
 }
 
+function makeFusionRecipeExcluder(tier:number) {
+    return (recipe:Recipe) => {
+        return tier < getFusionTier(recipe);
+    };
+}
+
 machines["Fusion Control Computer Mark I"] = {
     speed: 1,
     power: 1,
     parallels: 1,
-    customOverclock: makeFusionOverclockCalculator(TIER_LUV, 2),
+    customOverclock: makeFusionOverclockCalculator(1, 2),
+    excludesRecipe: makeFusionRecipeExcluder(1),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1444,7 +1476,8 @@ machines["Fusion Control Computer Mark II"] = {
     speed: 1,
     power: 1,
     parallels: 1,
-    customOverclock: makeFusionOverclockCalculator(TIER_ZPM, 2),
+    customOverclock: makeFusionOverclockCalculator(2, 2),
+    excludesRecipe: makeFusionRecipeExcluder(2),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1452,7 +1485,8 @@ machines["Fusion Control Computer Mark III"] = {
     speed: 1,
     power: 1,
     parallels: 1,
-    customOverclock: makeFusionOverclockCalculator(TIER_UV, 2),
+    customOverclock: makeFusionOverclockCalculator(3, 2),
+    excludesRecipe: makeFusionRecipeExcluder(3),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1460,7 +1494,8 @@ machines["FusionTech MK IV"] = {
     speed: 1,
     power: 1,
     parallels: 1,
-    customOverclock: makeFusionOverclockCalculator(TIER_UHV, 4),
+    customOverclock: makeFusionOverclockCalculator(4, 4),
+    excludesRecipe: makeFusionRecipeExcluder(4),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1468,7 +1503,8 @@ machines["FusionTech MK V"] = {
     speed: 1,
     power: 1,
     parallels: 1,
-    customOverclock: makeFusionOverclockCalculator(TIER_UEV, 4),
+    customOverclock: makeFusionOverclockCalculator(5, 4),
+    excludesRecipe: makeFusionRecipeExcluder(5),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1477,12 +1513,13 @@ machines["Compact Fusion Computer MK-I Prototype"] = {
     power: 1,
     parallels: 64,
     ignoreParallelLimit: true,
-    customOverclock: makeFusionOverclockCalculator(TIER_LUV, 2),
+    customOverclock: makeFusionOverclockCalculator(1, 2),
+    excludesRecipe: makeFusionRecipeExcluder(1),
     info: "NOTE: overrides voltage tier"
 };
 
 function getCompactFusionParallel(recipe:RecipeModel, tier:number) {
-    const fusionTier = getFusionTier(recipe);
+    const fusionTier = getFusionTier(recipe.recipe!);
     return (1 + tier - fusionTier) * 64;
 }
 
@@ -1491,7 +1528,8 @@ machines["Compact Fusion Computer MK-II"] = {
     power: 1,
     parallels: (recipe) => getCompactFusionParallel(recipe, 2),
     ignoreParallelLimit: true,
-    customOverclock: makeFusionOverclockCalculator(TIER_ZPM, 2),
+    customOverclock: makeFusionOverclockCalculator(2, 2),
+    excludesRecipe: makeFusionRecipeExcluder(2),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1500,7 +1538,8 @@ machines["Compact Fusion Computer MK-III"] = {
     power: 1,
     parallels: (recipe) => getCompactFusionParallel(recipe, 3),
     ignoreParallelLimit: true,
-    customOverclock: makeFusionOverclockCalculator(TIER_UV, 2),
+    customOverclock: makeFusionOverclockCalculator(3, 2),
+    excludesRecipe: makeFusionRecipeExcluder(3),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1509,7 +1548,8 @@ machines["Compact Fusion Computer MK-IV Prototype"] = {
     power: 1,
     parallels: (recipe) => getCompactFusionParallel(recipe, 4),
     ignoreParallelLimit: true,
-    customOverclock: makeFusionOverclockCalculator(TIER_UHV, 4),
+    customOverclock: makeFusionOverclockCalculator(4, 4),
+    excludesRecipe: makeFusionRecipeExcluder(4),
     info: "NOTE: overrides voltage tier"
 };
 
@@ -1518,6 +1558,7 @@ machines["Compact Fusion Computer MK-V"] = {
     power: 1,
     parallels: (recipe) => getCompactFusionParallel(recipe, 5),
     ignoreParallelLimit: true,
-    customOverclock: makeFusionOverclockCalculator(TIER_UEV, 4),
+    customOverclock: makeFusionOverclockCalculator(5, 4),
+    excludesRecipe: makeFusionRecipeExcluder(5),
     info: "NOTE: overrides voltage tier"
 };
