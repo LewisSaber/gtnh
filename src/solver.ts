@@ -69,7 +69,7 @@ export function calculateDefaultOverclocks(recipeModel:RecipeModel, overclockTie
     let machineInfo = recipeModel.machineInfo;
 
     let overclockSpeed = 1;
-    let overclockPower = recipeModel.recipe?.gtRecipe.amperage || 1;
+    let overclockPower = 1;
 
     let perfectOverclocks = Math.min(GetParameter(machineInfo.perfectOverclock || 0, recipeModel), overclockTiers);
     let normalOverclocks = overclockTiers - perfectOverclocks;
@@ -131,10 +131,11 @@ function PreProcessRecipe(recipeModel:RecipeModel, model:Model, collection:LinkC
         recipeModel.multiblockCrafter = crafter;
         recipeModel.machineInfo = machineInfo;
         recipeModel.ValidateChoices(machineInfo, recipeModel);
+        let amperage = gtRecipe.amperage;
         let actualVoltage = voltageTier[recipeModel.voltageTier].voltage;
         let machineParallels = GetParameter(machineInfo.parallels, recipeModel, 1);
         let energyModifier = GetParameter(machineInfo.power, recipeModel);
-        let maxParallels = machineInfo.ignoreParallelLimit ? machineParallels : Math.max(1, Math.floor(actualVoltage / (gtRecipe.voltage * energyModifier * gtRecipe.amperage)));
+        let maxParallels = machineInfo.ignoreParallelLimit ? machineParallels : Math.max(1, Math.floor(actualVoltage / (gtRecipe.voltage * energyModifier * amperage)));
         let parallels = Math.min(maxParallels, machineParallels);
         let tierDifference = recipeModel.voltageTier - gtRecipe.voltageTier;
         let overclockTiers = isSingleblock ? tierDifference : Math.min(tierDifference, Math.floor(Math.log2(maxParallels / parallels) / 2));
@@ -142,7 +143,7 @@ function PreProcessRecipe(recipeModel:RecipeModel, model:Model, collection:LinkC
         let speedModifier = GetParameter(machineInfo.speed, recipeModel);
         //console.log({machineParallels, maxParallels, parallels, overclockTiers, overclockSpeed, overclockPower, energyModifier, speedModifier});
         recipeModel.overclockFactor = overclockResult.overclockSpeed * speedModifier * parallels;
-        recipeModel.powerFactor = overclockResult.overclockPower * energyModifier / speedModifier;
+        recipeModel.powerFactor = amperage * overclockResult.overclockPower * energyModifier / speedModifier;
         recipeModel.parallels = parallels;
         recipeModel.overclockTiers = overclockTiers;
         recipeModel.overclockName = overclockResult.overclockName;
