@@ -2,7 +2,6 @@
 #dropdown
 {
     max-width: max(50%, 500px);
-    max-height: 100%;
     border-style: solid;
     background-color: #100010;
     border-color: #100010;
@@ -18,9 +17,16 @@
     scroll-behavior: smooth;
 }
 
+#dropdown
+{
+    z-index: 10000;
+    max-height: 80%;
+}
+
 #tooltip
 {
     z-index: 2000;
+    max-height: 100%;
 }
 
 #tooltip-header
