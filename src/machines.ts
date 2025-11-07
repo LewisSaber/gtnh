@@ -1296,7 +1296,7 @@ machines["Thorium Reactor [LFTR]"] = {
 };
 
 machines["Matter Fabrication CPU"] = {
-    overclocker: StandardOverclocker.onlyNormal(),
+    overclocker: StandardOverclocker.onlyPerfect(),
     speed: 1,
     power: 0.8,
     parallels: (recipe, choices) => {
