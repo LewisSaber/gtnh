@@ -1119,7 +1119,7 @@ machines["Pyrolyse Oven"] = {
 };
 
 machines["Elemental Duplicator"] = {
-    overclocker: StandardOverclocker.onlyNormal(),
+    overclocker: StandardOverclocker.onlyPerfect(),
     speed: 2,
     power: 1,
     parallels: (recipe) => 8 * (recipe.voltageTier + 1),
