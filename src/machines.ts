@@ -110,6 +110,7 @@ export type Machine = {
     ignoreParallelLimit?: boolean;
     fixedVoltageTier?: MachineCoefficient<number>;
     excludesRecipe?: (recipe:Recipe) => boolean;
+    roundAfterParallels?: boolean;
 }
 
 export function GetParameter<T>(coefficient: MachineCoefficient<T>, recipeModel:RecipeModel): T {
@@ -649,6 +650,7 @@ machines["Advanced Assembly Line"] = {
     parallels: (recipe) => recipe.getItemInputCount(),
     ignoreParallelLimit: true, // prevent parallel limitation as solver does not understand separate ampearage
     choices: {inputAmperage: {description: "Input Amperage", min: 16}},
+    roundAfterParallels: true,
     info: "NOTE: Voltage determines the energy hatch voltage, not maximum voltage. WARNING: Calculates beyond 1 slice per tick.",
 };
 
