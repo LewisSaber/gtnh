@@ -27,8 +27,10 @@ function OnGlobalScroll(ev: WheelEvent) : any {
   // Scroll inside tooltip instead of page
   tooltipScrollTarget += ev.deltaY;
   tooltipScrollTarget = Math.max(0, Math.min(tooltipScrollTarget, tooltip.scrollHeight - tooltip.clientHeight));
-  tooltip.scrollTop = tooltipScrollTarget;
-  ev.preventDefault(); // block normal page scroll
+  if (tooltip.scrollTop !== tooltipScrollTarget) {
+    tooltip.scrollTop = tooltipScrollTarget;
+    ev.preventDefault(); // block normal page scroll
+  }
 }
 
 export function ShowTooltip(target: HTMLElement, data: TooltipData): void {
