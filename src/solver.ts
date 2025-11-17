@@ -122,8 +122,20 @@ function PreProcessRecipe(recipeModel:RecipeModel, model:Model, collection:LinkC
         let overclockResult = GetParameter(machineInfo.overclocker, recipeModel).calculate(recipeModel, overclockTiers);
         let speedModifier = GetParameter(machineInfo.speed, recipeModel);
         //console.log({machineParallels, maxParallels, parallels, overclockTiers, overclockSpeed, overclockPower, energyModifier, speedModifier});
-        recipeModel.overclockFactor = overclockResult.overclockSpeed * speedModifier * parallels;
-        recipeModel.powerFactor = amperage * overclockResult.overclockPower * energyModifier / speedModifier;
+        
+        // Handle duration rounding. It always truncates decimals, i.e. favoring the player.
+        // In case of subtick processing we assume no rounding is taking place, which is a good approximation for now.
+        // Some machines round after parallels, for example Advanced Assembly Line
+        const durationTicksForRounding = machineInfo.roundAfterParallels ? (gtRecipe.durationTicks / parallels) : gtRecipe.durationTicks;
+        const estimatedDurationTicks = durationTicksForRounding / (overclockResult.overclockSpeed * speedModifier);
+        let speedCorrectionFactor = 1.0;
+        if (estimatedDurationTicks > 1) {
+            const roundedEstimatedDurationTicks = Math.floor(estimatedDurationTicks);
+            speedCorrectionFactor = estimatedDurationTicks / roundedEstimatedDurationTicks;
+        }
+
+        recipeModel.overclockFactor = overclockResult.overclockSpeed * speedModifier * speedCorrectionFactor * parallels;
+        recipeModel.powerFactor = amperage * overclockResult.overclockPower * energyModifier / speedModifier / speedCorrectionFactor;
         recipeModel.parallels = parallels;
         recipeModel.overclockTiers = overclockTiers;
         recipeModel.overclockName = overclockResult.overclockName;
