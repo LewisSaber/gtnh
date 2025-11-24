@@ -197,7 +197,7 @@ class NeiRecipeTypeInfo extends Array implements NeiRowAllocator<Recipe>
                     dom.push(` • ${recipe.gtRecipe.amperage}A`);
                 dom.push(`</span><span class="text-small">${formatAmount(recipe.gtRecipe.voltage)}v • ${formatAmount(recipe.gtRecipe.voltage * recipe.gtRecipe.amperage * recipe.gtRecipe.durationTicks)}eu</span>`);
                 for (const metadata of recipe.gtRecipe.metadata) {
-                    let str = MetadataToString(metadata);
+                    let str = MetadataToString(metadata, recipe);
                     if (str != null) {
                         dom.push(`<span class="text-small">${str}</span>`);
                     }
@@ -212,13 +212,18 @@ class NeiRecipeTypeInfo extends Array implements NeiRowAllocator<Recipe>
 
 const FuelTypeNames = ["Diesel", "Gas", "Hot", "Dense Steam", "Plasma", "Magic"];
 
-function DisplayHeatRequired(heat:number):string {
+function DisplayHeatRequired(heat:number, recipe:Recipe):string {
     let rawTier = Math.min(13, Math.max(0, (heat - 1800) / 900));
     let tier = Math.ceil(rawTier);
-    if (tier == 0)
-        return "Heat: "+heat+" ("+CoilTierNames[tier]+")K";
-    let tierRemainder = rawTier == tier ? 9 : Math.ceil((tier - rawTier) * 9);
-    return "Heat: "+heat+"K ("+CoilTierNames[tier]+" or "+CoilTierNames[tier-1]+" at "+voltageTier[TIER_MV + tierRemainder]?.name+")";
+    if (tier > 0 && recipe.recipeType.name === "Blast Furnace") {
+        let ebfTierSkip = TIER_MV + Math.ceil((rawTier - tier + 1) * 9);
+        if (ebfTierSkip <= recipe.gtRecipe.voltageTier + 2) {
+            if (recipe.gtRecipe.voltageTier >= ebfTierSkip)
+                return "Heat: "+heat+"K (Volc "+CoilTierNames[tier]+" / EBF "+CoilTierNames[tier-1]+")";
+            return "Heat: "+heat+"K (Volc "+CoilTierNames[tier]+" / "+voltageTier[ebfTierSkip]?.name+" EBF "+CoilTierNames[tier-1]+")";
+        }
+    }
+    return "Heat: "+heat+"K ("+CoilTierNames[tier]+")";
 }
 
 function DisplayFusionTier(euToStart:number):string {
@@ -232,7 +237,7 @@ function DisplayNkeRange(nke:number):string {
     return "Kinetic energy: "+min+" - "+max+" MeV";
 }
 
-function MetadataToString(metadata:GtRecipeMetadata):string | null {
+function MetadataToString(metadata:GtRecipeMetadata, recipe:Recipe):string | null {
     switch (metadata.key) {
         case "low_gravity": return metadata.value == 1 ? "Requires low gravity" : null;
         case "cleanroom": return metadata.value == 1 ? "Requires cleanroom" : null;
@@ -245,7 +250,7 @@ function MetadataToString(metadata:GtRecipeMetadata):string | null {
         case "GLASS": return "Glass tier: " + voltageTier[metadata.value-1].name;
         case "qft_focus_tier": return "QFT focus tier: " + metadata.value;
         case "recycle": return metadata.value == 1 ? "Recycle recipe" : null;
-        case "coil_heat": return DisplayHeatRequired(metadata.value);
+        case "coil_heat": return DisplayHeatRequired(metadata.value, recipe);
         case "nke_range": return DisplayNkeRange(metadata.value);
         default: return `${metadata.key}: ${formatAmount(metadata.value)}`;
     }
