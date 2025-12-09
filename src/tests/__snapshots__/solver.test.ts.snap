@@ -2582,7 +2582,7 @@ exports[`Solver Processing UHV naqfuel mk3 chromatic glass.gtnh should process w
     "id": "r~rcPNnvRDNmyj6qmxnD66iQ==",
     "overclockFactor": 71.42857142857143,
     "overclockName": "Perfect OC x3",
-    "powerFactor": 0.5364682975575873,
+    "powerFactor": 0.5364682975575872,
     "recipesPerMinute": 2.22222222,
   },
 ]
